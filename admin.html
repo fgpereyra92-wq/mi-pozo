@@ -95,6 +95,10 @@
             transform: translateY(2px);
             box-shadow: 0 1px 0 #7e4a2a;
         }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         .set-input {
             display: flex;
             gap: 0.7rem;
@@ -147,12 +151,30 @@
             margin-top: 1.8rem;
             color: #5c5a48;
         }
+        /* Estado de conexión */
+        .estado-conexion {
+            text-align: center;
+            font-size: 0.78rem;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        .conectado    { background: #d4edda; color: #155724; }
+        .desconectado { background: #f8d7da; color: #721c24; }
+        .conectando   { background: #fff3cd; color: #856404; }
     </style>
 </head>
 <body>
 <div class="card">
     <h1>🎰 ADMIN · POZO</h1>
     <div class="subtitulo">📊 Cargar información de participantes</div>
+
+    <!-- Estado Firebase -->
+    <div class="estado-conexion conectando" id="estadoConexion">
+        ⏳ Conectando con la base de datos…
+    </div>
+
     <div class="info-formula">
         💡 Regla fija: <strong>Primer apostador: $12.500</strong><br>
         Cada nuevo participante <strong>apuesta $10.000</strong> → el pozo crece +<strong>$8.000</strong> (80% de la apuesta).<br>
@@ -161,22 +183,22 @@
 
     <div class="participantes-panel">
         <div style="text-align: center; font-weight: bold;">👥 PARTICIPANTES REGISTRADOS</div>
-        <div class="numero-actual" id="participantesCountDisplay">1</div>
+        <div class="numero-actual" id="participantesCountDisplay">–</div>
         
         <div class="botones">
-            <button id="btnMenos">➖ Restar 1</button>
-            <button id="btnMas">➕ Agregar 1</button>
+            <button id="btnMenos" disabled>➖ Restar 1</button>
+            <button id="btnMas"   disabled>➕ Agregar 1</button>
         </div>
         
         <div class="set-input">
-            <input type="number" id="manualParticipantes" min="1" value="1" step="1">
-            <button id="btnSet">📌 Establecer</button>
+            <input type="number" id="manualParticipantes" min="1" value="1" step="1" disabled>
+            <button id="btnSet" disabled>📌 Establecer</button>
         </div>
     </div>
 
     <div class="pozo-preview">
         🏆 POZO ACTUAL PREVIEW 🏆<br>
-        <span id="previewPozo">$12.500</span>
+        <span id="previewPozo">–</span>
         <div style="font-size: 0.85rem;">✨ Próxima apuesta suma: <strong id="nextAdd">$8.000</strong></div>
     </div>
 
@@ -186,91 +208,120 @@
     </div>
     <hr>
     <footer>
-        ✅ Cada cambio se guarda automáticamente. La página pública reacciona al instante.
+        ✅ Cada cambio se guarda en la nube. La página pública reacciona al instante en cualquier dispositivo.
     </footer>
 </div>
 
-<script>
-    // -----  CONSTANTES  ------
-    const INITIAL_POT = 12500;      // 1 participante
-    const INCREMENT = 8000;         // cada nuevo participante suma $8000 (80% de $10000)
+<!-- =================== FIREBASE SDK =================== -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-    // Función para calcular pozo según cantidad de participantes
-    function calcularPozo(participantes) {
-        if (participantes < 1) participantes = 1;
-        return INITIAL_POT + (participantes - 1) * INCREMENT;
+<script>
+    // =====================================================
+    //  ⚠️  REEMPLAZÁ ESTOS VALORES CON LOS DE TU PROYECTO
+    //  (ver instrucciones en el archivo INSTRUCCIONES.txt)
+    // =====================================================
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+	const firebaseConfig = {
+	apiKey: "AIzaSyADpRIUXaOl_Lmp0hCDaFeLKvVpiDBFQBU",
+	authDomain: "mi-pozo.firebaseapp.com",
+	databaseURL: "https://mi-pozo-default-rtdb.firebaseio.com",
+	projectId: "mi-pozo",
+	storageBucket: "mi-pozo.firebasestorage.app",
+	messagingSenderId: "39998331341",
+	appId: "1:39998331341:web:bac25486722662fd78cc84"
+};
+
+// Initialize Firebase
+	const app = initializeApp(firebaseConfig);   // ruta en la BD
+
+    // -----  CONSTANTES  ------
+    const INITIAL_POT = 12500;
+    const INCREMENT   = 8000;
+
+    function calcularPozo(p) {
+        return INITIAL_POT + (Math.max(1, p) - 1) * INCREMENT;
     }
 
-    // Formateador moneda ARG (puntos de miles, sin decimales)
-    const formatter = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const formatter = new Intl.NumberFormat('es-AR', {
+        style: 'currency', currency: 'ARS',
+        minimumFractionDigits: 0, maximumFractionDigits: 0
+    });
 
     // Referencias DOM
     const participantesSpan = document.getElementById('participantesCountDisplay');
-    const previewPozoSpan = document.getElementById('previewPozo');
-    const nextAddSpan = document.getElementById('nextAdd');
-    const btnMenos = document.getElementById('btnMenos');
-    const btnMas = document.getElementById('btnMas');
-    const btnSet = document.getElementById('btnSet');
-    const manualInput = document.getElementById('manualParticipantes');
+    const previewPozoSpan   = document.getElementById('previewPozo');
+    const nextAddSpan       = document.getElementById('nextAdd');
+    const btnMenos          = document.getElementById('btnMenos');
+    const btnMas            = document.getElementById('btnMas');
+    const btnSet            = document.getElementById('btnSet');
+    const manualInput       = document.getElementById('manualParticipantes');
+    const estadoDiv         = document.getElementById('estadoConexion');
 
-    // ----------  Actualizar TODO (UI + localStorage) ----------
-    function actualizarTodo(participantes) {
-        // Validar mínimo 1
-        if (participantes < 1) participantes = 1;
-        if (isNaN(participantes)) participantes = 1;
-        
-        // Guardar en localStorage
-        localStorage.setItem('participantsCount', participantes);
-        
-        // Actualizar displays
-        participantesSpan.innerText = participantes;
-        const pozo = calcularPozo(participantes);
-        previewPozoSpan.innerText = formatter.format(pozo);
-        nextAddSpan.innerText = formatter.format(INCREMENT);
-        manualInput.value = participantes;
+    let participantesActuales = 1;
+    let dbLista = false;
+
+    // ----------  Actualizar UI local (sin escribir en BD) ----------
+    function actualizarUI(p) {
+        p = Math.max(1, parseInt(p) || 1);
+        participantesActuales = p;
+        participantesSpan.innerText = p;
+        previewPozoSpan.innerText   = formatter.format(calcularPozo(p));
+        nextAddSpan.innerText       = formatter.format(INCREMENT);
+        manualInput.value           = p;
     }
 
-    // Obtener participantes desde localStorage o usar 1 por defecto
-    function obtenerParticipantes() {
-        let stored = localStorage.getItem('participantsCount');
-        if (stored === null || isNaN(parseInt(stored))) return 1;
-        return Math.max(1, parseInt(stored));
+    // ----------  Escribir en Firebase ----------
+    function guardar(p) {
+        p = Math.max(1, parseInt(p) || 1);
+        ref.set(p);   // dispara el listener 'value' en todos los clientes
     }
 
-    // Cargar estado inicial
-    function inicializarAdmin() {
-        let participantes = obtenerParticipantes();
-        actualizarTodo(participantes);
-    }
+    // ----------  Escuchar cambios en tiempo real ----------
+    ref.on('value', (snapshot) => {
+        const val = snapshot.val();
+        actualizarUI(val !== null ? val : 1);
 
-    // Eventos
-    btnMas.addEventListener('click', () => {
-        let actual = obtenerParticipantes();
-        actualizarTodo(actual + 1);
+        if (!dbLista) {
+            // Primera vez: habilitar controles
+            dbLista = true;
+            [btnMenos, btnMas, btnSet, manualInput].forEach(el => el.disabled = false);
+            estadoDiv.className     = 'estado-conexion conectado';
+            estadoDiv.textContent   = '🟢 Conectado — cambios en vivo en todos los dispositivos';
+        }
     });
-    
+
+    // ----------  Monitor de conexión ----------
+    db.ref('.info/connected').on('value', (snap) => {
+        if (!snap.val()) {
+            estadoDiv.className   = 'estado-conexion desconectado';
+            estadoDiv.textContent = '🔴 Sin conexión — reconectando…';
+        } else if (dbLista) {
+            estadoDiv.className   = 'estado-conexion conectado';
+            estadoDiv.textContent = '🟢 Conectado — cambios en vivo en todos los dispositivos';
+        }
+    });
+
+    // ----------  Eventos de botones ----------
+    btnMas.addEventListener('click', () => guardar(participantesActuales + 1));
+
     btnMenos.addEventListener('click', () => {
-        let actual = obtenerParticipantes();
-        if (actual > 1) {
-            actualizarTodo(actual - 1);
-        }
+        if (participantesActuales > 1) guardar(participantesActuales - 1);
     });
-    
+
     btnSet.addEventListener('click', () => {
-        let nuevo = parseInt(manualInput.value);
-        if (isNaN(nuevo)) nuevo = 1;
-        actualizarTodo(nuevo);
+        const nuevo = parseInt(manualInput.value);
+        guardar(isNaN(nuevo) ? 1 : nuevo);
     });
-    
-    // Sincronizar si otro admin cambia el storage (misma pestaña o distinta)
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'participantsCount') {
-            let newVal = e.newValue ? parseInt(e.newValue) : 1;
-            if (!isNaN(newVal)) actualizarTodo(newVal);
-        }
+
+    manualInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') btnSet.click();
     });
-    
-    inicializarAdmin();
 </script>
 </body>
 </html>
