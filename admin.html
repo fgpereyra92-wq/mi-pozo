@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Admin - Control de pozo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Roboto', monospace;
+        }
+        body {
+            background: linear-gradient(145deg, #1a472a 0%, #0e2a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255,248,225,0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 64px 32px 64px 32px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,200,0.6);
+            padding: 2rem 1.8rem;
+            transition: all 0.2s;
+        }
+        h1 {
+            font-size: 1.9rem;
+            margin: 0 0 0.2rem 0;
+            color: #2c5a2a;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-left: 6px solid #f5b042;
+            padding-left: 1rem;
+        }
+        .subtitulo {
+            color: #3e6b3a;
+            margin-bottom: 2rem;
+            font-weight: 500;
+            border-bottom: 1px dashed #c0b28a;
+            padding-bottom: 0.6rem;
+        }
+        .info-formula {
+            background: #e9f0e3;
+            padding: 1rem;
+            border-radius: 28px;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            color: #2d4a1e;
+            text-align: center;
+            box-shadow: inset 0 1px 3px #0001, 0 2px 4px #fff8;
+        }
+        .participantes-panel {
+            background: #fff2df;
+            border-radius: 40px;
+            padding: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        .numero-actual {
+            font-size: 4rem;
+            font-weight: 800;
+            text-align: center;
+            background: #2b3b26;
+            color: #ffeaac;
+            border-radius: 60px;
+            padding: 0.2rem 0.5rem;
+            margin: 0.5rem 0;
+            letter-spacing: 4px;
+        }
+        .botones {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 1.2rem 0;
+        }
+        button {
+            background: #f0b27a;
+            border: none;
+            font-weight: bold;
+            font-size: 1.3rem;
+            padding: 0.6rem 1.4rem;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: 0.1s linear;
+            box-shadow: 0 3px 0 #7e4a2a;
+            color: #2c2b1f;
+        }
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #7e4a2a;
+        }
+        .set-input {
+            display: flex;
+            gap: 0.7rem;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+        input {
+            font-size: 1.3rem;
+            width: 110px;
+            text-align: center;
+            border-radius: 60px;
+            border: 1px solid #c0a36b;
+            padding: 0.4rem;
+            font-weight: bold;
+        }
+        .pozo-preview {
+            background: #2f4229;
+            color: #ffefb9;
+            padding: 1rem;
+            border-radius: 50px;
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+        .pozo-preview span {
+            font-size: 2.2rem;
+            font-weight: bold;
+            display: block;
+            color: #ffd966;
+        }
+        .link-public {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        a {
+            color: #1c6b2f;
+            font-weight: bold;
+            text-decoration: none;
+            background: #fae67a;
+            padding: 0.3rem 1rem;
+            border-radius: 60px;
+        }
+        hr {
+            margin: 1rem 0;
+            border-color: #cbbd8e;
+        }
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 1.8rem;
+            color: #5c5a48;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>🎰 ADMIN · POZO</h1>
+    <div class="subtitulo">📊 Cargar información de participantes</div>
+    <div class="info-formula">
+        💡 Regla fija: <strong>Primer apostador: $12.500</strong><br>
+        Cada nuevo participante <strong>apuesta $10.000</strong> → el pozo crece +<strong>$8.000</strong> (80% de la apuesta).<br>
+        Fórmula interna: <code>12.500 + (participantes-1) × 8.000</code>
+    </div>
+
+    <div class="participantes-panel">
+        <div style="text-align: center; font-weight: bold;">👥 PARTICIPANTES REGISTRADOS</div>
+        <div class="numero-actual" id="participantesCountDisplay">1</div>
+        
+        <div class="botones">
+            <button id="btnMenos">➖ Restar 1</button>
+            <button id="btnMas">➕ Agregar 1</button>
+        </div>
+        
+        <div class="set-input">
+            <input type="number" id="manualParticipantes" min="1" value="1" step="1">
+            <button id="btnSet">📌 Establecer</button>
+        </div>
+    </div>
+
+    <div class="pozo-preview">
+        🏆 POZO ACTUAL PREVIEW 🏆<br>
+        <span id="previewPozo">$12.500</span>
+        <div style="font-size: 0.85rem;">✨ Próxima apuesta suma: <strong id="nextAdd">$8.000</strong></div>
+    </div>
+
+    <div class="link-public">
+        🔗 <a href="public.html" target="_blank">🌐 VER PÁGINA PÚBLICA (se actualiza sola)</a><br>
+        <small>(Abrir en otra pestaña para ver efecto en vivo)</small>
+    </div>
+    <hr>
+    <footer>
+        ✅ Cada cambio se guarda automáticamente. La página pública reacciona al instante.
+    </footer>
+</div>
+
+<script>
+    // -----  CONSTANTES  ------
+    const INITIAL_POT = 12500;      // 1 participante
+    const INCREMENT = 8000;         // cada nuevo participante suma $8000 (80% de $10000)
+
+    // Función para calcular pozo según cantidad de participantes
+    function calcularPozo(participantes) {
+        if (participantes < 1) participantes = 1;
+        return INITIAL_POT + (participantes - 1) * INCREMENT;
+    }
+
+    // Formateador moneda ARG (puntos de miles, sin decimales)
+    const formatter = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    // Referencias DOM
+    const participantesSpan = document.getElementById('participantesCountDisplay');
+    const previewPozoSpan = document.getElementById('previewPozo');
+    const nextAddSpan = document.getElementById('nextAdd');
+    const btnMenos = document.getElementById('btnMenos');
+    const btnMas = document.getElementById('btnMas');
+    const btnSet = document.getElementById('btnSet');
+    const manualInput = document.getElementById('manualParticipantes');
+
+    // ----------  Actualizar TODO (UI + localStorage) ----------
+    function actualizarTodo(participantes) {
+        // Validar mínimo 1
+        if (participantes < 1) participantes = 1;
+        if (isNaN(participantes)) participantes = 1;
+        
+        // Guardar en localStorage
+        localStorage.setItem('participantsCount', participantes);
+        
+        // Actualizar displays
+        participantesSpan.innerText = participantes;
+        const pozo = calcularPozo(participantes);
+        previewPozoSpan.innerText = formatter.format(pozo);
+        nextAddSpan.innerText = formatter.format(INCREMENT);
+        manualInput.value = participantes;
+    }
+
+    // Obtener participantes desde localStorage o usar 1 por defecto
+    function obtenerParticipantes() {
+        let stored = localStorage.getItem('participantsCount');
+        if (stored === null || isNaN(parseInt(stored))) return 1;
+        return Math.max(1, parseInt(stored));
+    }
+
+    // Cargar estado inicial
+    function inicializarAdmin() {
+        let participantes = obtenerParticipantes();
+        actualizarTodo(participantes);
+    }
+
+    // Eventos
+    btnMas.addEventListener('click', () => {
+        let actual = obtenerParticipantes();
+        actualizarTodo(actual + 1);
+    });
+    
+    btnMenos.addEventListener('click', () => {
+        let actual = obtenerParticipantes();
+        if (actual > 1) {
+            actualizarTodo(actual - 1);
+        }
+    });
+    
+    btnSet.addEventListener('click', () => {
+        let nuevo = parseInt(manualInput.value);
+        if (isNaN(nuevo)) nuevo = 1;
+        actualizarTodo(nuevo);
+    });
+    
+    // Sincronizar si otro admin cambia el storage (misma pestaña o distinta)
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'participantsCount') {
+            let newVal = e.newValue ? parseInt(e.newValue) : 1;
+            if (!isNaN(newVal)) actualizarTodo(newVal);
+        }
+    });
+    
+    inicializarAdmin();
+</script>
+</body>
+</html>
