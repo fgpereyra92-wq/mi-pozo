@@ -135,36 +135,32 @@
     </div>
 </div>
 
-<!-- =================== FIREBASE SDK =================== -->
+<!-- Firebase SDK (versión compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-    // =====================================================
-    //  ⚠️  MISMO firebaseConfig QUE EN admin.html
-    // =====================================================
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    // ==================== CONFIGURACIÓN DE FIREBASE ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyADpRIUXaOl_Lmp0hCDaFeLKvVpiDBFQBU",
+        authDomain: "mi-pozo.firebaseapp.com",
+        databaseURL: "https://mi-pozo-default-rtdb.firebaseio.com",
+        projectId: "mi-pozo",
+        storageBucket: "mi-pozo.firebasestorage.app",
+        messagingSenderId: "39998331341",
+        appId: "1:39998331341:web:bac25486722662fd78cc84"
+    };
 
-// Your web app's Firebase configuration
-	const firebaseConfig = {
-	apiKey: "AIzaSyADpRIUXaOl_Lmp0hCDaFeLKvVpiDBFQBU",
-	authDomain: "mi-pozo.firebaseapp.com",
-	databaseURL: "https://mi-pozo-default-rtdb.firebaseio.com",
-	projectId: "mi-pozo",
-	storageBucket: "mi-pozo.firebasestorage.app",
-	messagingSenderId: "39998331341",
-	appId: "1:39998331341:web:bac25486722662fd78cc84"
-};
+    // Inicializar Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    
+    // Referencia a la ruta donde guardamos los participantes
+    const dbRef = database.ref('participantes');
 
-// Initialize Firebase
-	const app = initializeApp(firebaseConfig);   // misma ruta que en admin
-
-    // Mismas constantes y fórmula que en admin
+    // ==================== CONSTANTES DEL NEGOCIO ====================
     const INITIAL_POT = 12500;
-    const INCREMENT   = 8000;
+    const INCREMENT = 8000;
 
     function calcularPozo(p) {
         return INITIAL_POT + (Math.max(1, p) - 1) * INCREMENT;
@@ -175,30 +171,31 @@ import { initializeApp } from "firebase/app";
         minimumFractionDigits: 0, maximumFractionDigits: 0
     });
 
-    // Elementos del DOM
-    const pozoDisplaySpan       = document.getElementById('pozoDisplay');
-    const nextSumSpan           = document.getElementById('nextSumDisplay');
-    const participantesCountSpan= document.getElementById('participantesCountDisplay');
-    const estadoNube            = document.getElementById('estadoNube');
+    // ==================== ELEMENTOS DOM ====================
+    const pozoDisplaySpan = document.getElementById('pozoDisplay');
+    const nextSumSpan = document.getElementById('nextSumDisplay');
+    const participantesCountSpan = document.getElementById('participantesCountDisplay');
+    const estadoNube = document.getElementById('estadoNube');
 
-    // ----------  Escuchar cambios en tiempo real ----------
-    // Se dispara automáticamente cada vez que admin guarda un nuevo valor
-    ref.on('value', (snapshot) => {
+    // ==================== ESCUCHAR CAMBIOS EN TIEMPO REAL ====================
+    dbRef.on('value', (snapshot) => {
         const val = snapshot.val();
         const participantes = (val !== null && !isNaN(val)) ? Math.max(1, val) : 1;
 
         const pozoActual = calcularPozo(participantes);
-        pozoDisplaySpan.innerText        = formatter.format(pozoActual);
-        nextSumSpan.innerText            = formatter.format(INCREMENT);
+        pozoDisplaySpan.innerText = formatter.format(pozoActual);
+        nextSumSpan.innerText = formatter.format(INCREMENT);
         participantesCountSpan.innerText = participantes;
 
         // Animación de actualización
         pozoDisplaySpan.classList.add('actualizado');
         setTimeout(() => pozoDisplaySpan.classList.remove('actualizado'), 500);
+        
+        estadoNube.textContent = '🟢 En vivo · Firebase conectado';
     });
 
-    // ----------  Monitor de conexión ----------
-    db.ref('.info/connected').on('value', (snap) => {
+    // ==================== MONITOR DE CONEXIÓN ====================
+    database.ref('.info/connected').on('value', (snap) => {
         if (snap.val()) {
             estadoNube.textContent = '🟢 En vivo · Firebase conectado';
         } else {
