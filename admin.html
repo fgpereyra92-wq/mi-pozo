@@ -151,7 +151,6 @@
             margin-top: 1.8rem;
             color: #5c5a48;
         }
-        /* Estado de conexión */
         .estado-conexion {
             text-align: center;
             font-size: 0.78rem;
@@ -170,7 +169,6 @@
     <h1>🎰 ADMIN · POZO</h1>
     <div class="subtitulo">📊 Cargar información de participantes</div>
 
-    <!-- Estado Firebase -->
     <div class="estado-conexion conectando" id="estadoConexion">
         ⏳ Conectando con la base de datos…
     </div>
@@ -212,37 +210,32 @@
     </footer>
 </div>
 
-<!-- =================== FIREBASE SDK =================== -->
+<!-- Firebase SDK (versión compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-    // =====================================================
-    //  ⚠️  REEMPLAZÁ ESTOS VALORES CON LOS DE TU PROYECTO
-    //  (ver instrucciones en el archivo INSTRUCCIONES.txt)
-    // =====================================================
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    // ==================== CONFIGURACIÓN DE FIREBASE ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyADpRIUXaOl_Lmp0hCDaFeLKvVpiDBFQBU",
+        authDomain: "mi-pozo.firebaseapp.com",
+        databaseURL: "https://mi-pozo-default-rtdb.firebaseio.com",
+        projectId: "mi-pozo",
+        storageBucket: "mi-pozo.firebasestorage.app",
+        messagingSenderId: "39998331341",
+        appId: "1:39998331341:web:bac25486722662fd78cc84"
+    };
 
-// Your web app's Firebase configuration
-	const firebaseConfig = {
-	apiKey: "AIzaSyADpRIUXaOl_Lmp0hCDaFeLKvVpiDBFQBU",
-	authDomain: "mi-pozo.firebaseapp.com",
-	databaseURL: "https://mi-pozo-default-rtdb.firebaseio.com",
-	projectId: "mi-pozo",
-	storageBucket: "mi-pozo.firebasestorage.app",
-	messagingSenderId: "39998331341",
-	appId: "1:39998331341:web:bac25486722662fd78cc84"
-};
+    // Inicializar Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    
+    // Referencia a la ruta donde guardamos los participantes
+    const dbRef = database.ref('participantes');
 
-// Initialize Firebase
-	const app = initializeApp(firebaseConfig);   // ruta en la BD
-
-    // -----  CONSTANTES  ------
+    // ==================== CONSTANTES DEL NEGOCIO ====================
     const INITIAL_POT = 12500;
-    const INCREMENT   = 8000;
+    const INCREMENT = 8000;
 
     function calcularPozo(p) {
         return INITIAL_POT + (Math.max(1, p) - 1) * INCREMENT;
@@ -253,72 +246,80 @@ import { initializeApp } from "firebase/app";
         minimumFractionDigits: 0, maximumFractionDigits: 0
     });
 
-    // Referencias DOM
+    // ==================== ELEMENTOS DOM ====================
     const participantesSpan = document.getElementById('participantesCountDisplay');
-    const previewPozoSpan   = document.getElementById('previewPozo');
-    const nextAddSpan       = document.getElementById('nextAdd');
-    const btnMenos          = document.getElementById('btnMenos');
-    const btnMas            = document.getElementById('btnMas');
-    const btnSet            = document.getElementById('btnSet');
-    const manualInput       = document.getElementById('manualParticipantes');
-    const estadoDiv         = document.getElementById('estadoConexion');
+    const previewPozoSpan = document.getElementById('previewPozo');
+    const nextAddSpan = document.getElementById('nextAdd');
+    const btnMenos = document.getElementById('btnMenos');
+    const btnMas = document.getElementById('btnMas');
+    const btnSet = document.getElementById('btnSet');
+    const manualInput = document.getElementById('manualParticipantes');
+    const estadoDiv = document.getElementById('estadoConexion');
 
     let participantesActuales = 1;
-    let dbLista = false;
+    let datosCargados = false;
 
-    // ----------  Actualizar UI local (sin escribir en BD) ----------
+    // ==================== ACTUALIZAR UI LOCAL ====================
     function actualizarUI(p) {
         p = Math.max(1, parseInt(p) || 1);
         participantesActuales = p;
         participantesSpan.innerText = p;
-        previewPozoSpan.innerText   = formatter.format(calcularPozo(p));
-        nextAddSpan.innerText       = formatter.format(INCREMENT);
-        manualInput.value           = p;
+        previewPozoSpan.innerText = formatter.format(calcularPozo(p));
+        nextAddSpan.innerText = formatter.format(INCREMENT);
+        manualInput.value = p;
     }
 
-    // ----------  Escribir en Firebase ----------
+    // ==================== GUARDAR EN FIREBASE ====================
     function guardar(p) {
         p = Math.max(1, parseInt(p) || 1);
-        ref.set(p);   // dispara el listener 'value' en todos los clientes
+        dbRef.set(p).catch(error => {
+            console.error("Error al guardar:", error);
+            estadoDiv.className = 'estado-conexion desconectado';
+            estadoDiv.textContent = '❌ Error al guardar - revisa consola';
+        });
     }
 
-    // ----------  Escuchar cambios en tiempo real ----------
-    ref.on('value', (snapshot) => {
+    // ==================== ESCUCHAR CAMBIOS EN TIEMPO REAL ====================
+    dbRef.on('value', (snapshot) => {
         const val = snapshot.val();
         actualizarUI(val !== null ? val : 1);
-
-        if (!dbLista) {
-            // Primera vez: habilitar controles
-            dbLista = true;
-            [btnMenos, btnMas, btnSet, manualInput].forEach(el => el.disabled = false);
-            estadoDiv.className     = 'estado-conexion conectado';
-            estadoDiv.textContent   = '🟢 Conectado — cambios en vivo en todos los dispositivos';
+        
+        if (!datosCargados) {
+            datosCargados = true;
+            // Habilitar controles solo después de tener el primer dato
+            btnMenos.disabled = false;
+            btnMas.disabled = false;
+            btnSet.disabled = false;
+            manualInput.disabled = false;
         }
+        
+        estadoDiv.className = 'estado-conexion conectado';
+        estadoDiv.textContent = '🟢 Conectado — cambios en vivo en todos los dispositivos';
     });
 
-    // ----------  Monitor de conexión ----------
-    db.ref('.info/connected').on('value', (snap) => {
+    // ==================== MONITOR DE CONEXIÓN ====================
+    database.ref('.info/connected').on('value', (snap) => {
         if (!snap.val()) {
-            estadoDiv.className   = 'estado-conexion desconectado';
+            estadoDiv.className = 'estado-conexion desconectado';
             estadoDiv.textContent = '🔴 Sin conexión — reconectando…';
-        } else if (dbLista) {
-            estadoDiv.className   = 'estado-conexion conectado';
+        } else if (datosCargados) {
+            estadoDiv.className = 'estado-conexion conectado';
             estadoDiv.textContent = '🟢 Conectado — cambios en vivo en todos los dispositivos';
         }
     });
 
-    // ----------  Eventos de botones ----------
+    // ==================== EVENTOS DE BOTONES ====================
     btnMas.addEventListener('click', () => guardar(participantesActuales + 1));
-
+    
     btnMenos.addEventListener('click', () => {
         if (participantesActuales > 1) guardar(participantesActuales - 1);
     });
-
+    
     btnSet.addEventListener('click', () => {
         const nuevo = parseInt(manualInput.value);
         guardar(isNaN(nuevo) ? 1 : nuevo);
     });
-
+    
     manualInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') btnSet.click();
     });
