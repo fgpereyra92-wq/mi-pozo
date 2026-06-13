@@ -98,23 +98,24 @@
             border-radius: 100px;
             font-size: 0.8rem;
         }
-        .pozo-valor {
-            font-weight: bold;
-            transition: all 0.2s ease;
+        .estado-nube {
+            font-size: 0.72rem;
+            margin-top: 0.6rem;
+            opacity: 0.75;
         }
         @keyframes ligeroBrillo {
-            0% { text-shadow: 0 0 0px gold;}
-            100% { text-shadow: 0 0 8px #ffbf40;}
+            0%   { text-shadow: 0 0 0px gold; }
+            100% { text-shadow: 0 0 14px #ffbf40, 0 0 28px #ff9000; }
         }
         .actualizado {
-            animation: ligeroBrillo 0.4s ease-out;
+            animation: ligeroBrillo 0.5s ease-out;
         }
     </style>
 </head>
 <body>
 <div class="premio-card" id="mainCard">
     <div class="etiqueta">🎲 PREMIO ACUMULADO 🎲</div>
-    <div class="monto-principal" id="pozoDisplay">$12.500</div>
+    <div class="monto-principal" id="pozoDisplay">…</div>
     
     <div class="detalle-suma">
         🔥 PRÓXIMA APUESTA SUMA 🔥<br>
@@ -123,68 +124,87 @@
     </div>
     
     <div class="participantes-suave" id="participantesSuave">
-        👥 Participantes actuales: <span id="participantesCountDisplay">1</span>
+        👥 Participantes actuales: <span id="participantesCountDisplay">–</span>
     </div>
     
     <div class="refresco-automatico">
         ⚡ Datos en vivo · Se actualizan solos cuando el administrador los cambia ⚡
+        <div class="estado-nube" id="estadoNube">🔄 Conectando…</div>
         <br>
         <a href="admin.html" class="btn-link" target="_blank">🔧 Panel de administración</a>
     </div>
 </div>
 
+<!-- =================== FIREBASE SDK =================== -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
+    // =====================================================
+    //  ⚠️  MISMO firebaseConfig QUE EN admin.html
+    // =====================================================
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+	const firebaseConfig = {
+	apiKey: "AIzaSyADpRIUXaOl_Lmp0hCDaFeLKvVpiDBFQBU",
+	authDomain: "mi-pozo.firebaseapp.com",
+	databaseURL: "https://mi-pozo-default-rtdb.firebaseio.com",
+	projectId: "mi-pozo",
+	storageBucket: "mi-pozo.firebasestorage.app",
+	messagingSenderId: "39998331341",
+	appId: "1:39998331341:web:bac25486722662fd78cc84"
+};
+
+// Initialize Firebase
+	const app = initializeApp(firebaseConfig);   // misma ruta que en admin
+
     // Mismas constantes y fórmula que en admin
     const INITIAL_POT = 12500;
-    const INCREMENT = 8000;
-    
-    function calcularPozo(participantes) {
-        if (participantes < 1) participantes = 1;
-        return INITIAL_POT + (participantes - 1) * INCREMENT;
+    const INCREMENT   = 8000;
+
+    function calcularPozo(p) {
+        return INITIAL_POT + (Math.max(1, p) - 1) * INCREMENT;
     }
-    
-    const formatter = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    
+
+    const formatter = new Intl.NumberFormat('es-AR', {
+        style: 'currency', currency: 'ARS',
+        minimumFractionDigits: 0, maximumFractionDigits: 0
+    });
+
     // Elementos del DOM
-    const pozoDisplaySpan = document.getElementById('pozoDisplay');
-    const nextSumSpan = document.getElementById('nextSumDisplay');
-    const participantesCountSpan = document.getElementById('participantesCountDisplay');
-    const cardDiv = document.getElementById('mainCard');
-    
-    function actualizarVistaPublica() {
-        let stored = localStorage.getItem('participantsCount');
-        let participantes = (stored !== null && !isNaN(parseInt(stored))) ? parseInt(stored) : 1;
-        if (participantes < 1) participantes = 1;
-        
+    const pozoDisplaySpan       = document.getElementById('pozoDisplay');
+    const nextSumSpan           = document.getElementById('nextSumDisplay');
+    const participantesCountSpan= document.getElementById('participantesCountDisplay');
+    const estadoNube            = document.getElementById('estadoNube');
+
+    // ----------  Escuchar cambios en tiempo real ----------
+    // Se dispara automáticamente cada vez que admin guarda un nuevo valor
+    ref.on('value', (snapshot) => {
+        const val = snapshot.val();
+        const participantes = (val !== null && !isNaN(val)) ? Math.max(1, val) : 1;
+
         const pozoActual = calcularPozo(participantes);
-        pozoDisplaySpan.innerText = formatter.format(pozoActual);
-        nextSumSpan.innerText = formatter.format(INCREMENT);
+        pozoDisplaySpan.innerText        = formatter.format(pozoActual);
+        nextSumSpan.innerText            = formatter.format(INCREMENT);
         participantesCountSpan.innerText = participantes;
-        
-        // Pequeña animación de actualización
+
+        // Animación de actualización
         pozoDisplaySpan.classList.add('actualizado');
-        setTimeout(() => {
-            pozoDisplaySpan.classList.remove('actualizado');
-        }, 400);
-    }
-    
-    // Escuchar cambios en localStorage (desde admin u otra pestaña)
-    window.addEventListener('storage', (event) => {
-        if (event.key === 'participantsCount') {
-            actualizarVistaPublica();
+        setTimeout(() => pozoDisplaySpan.classList.remove('actualizado'), 500);
+    });
+
+    // ----------  Monitor de conexión ----------
+    db.ref('.info/connected').on('value', (snap) => {
+        if (snap.val()) {
+            estadoNube.textContent = '🟢 En vivo · Firebase conectado';
+        } else {
+            estadoNube.textContent = '🔴 Sin conexión · reconectando…';
         }
     });
-    
-    // Cada vez que la página se enfoca, también podemos verificar (por si acaso)
-    window.addEventListener('focus', () => {
-        actualizarVistaPublica();
-    });
-    
-    // Cargar al inicio
-    actualizarVistaPublica();
-    
-    // Opcional: si quieres un chequeo cada 2 segundos (solo por robustez, pero storage es suficiente)
-    // De todas formas, storage cubre 99% de casos.
 </script>
 </body>
 </html>
